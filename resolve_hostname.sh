@@ -29,7 +29,8 @@ do
 	then
 		echo "Look up $ip"
 		q=$(curl -s extreme-ip-lookup.com/json/$ip)
-		
+		now=$(date +%s)
+
 		businessName=$(jq -r '.businessName' <<<$q)
 		businessWebsite=$(jq -r '.businessWebsite' <<<$q)
 		city=$(jq -r '.city' <<<$q)
@@ -46,47 +47,60 @@ do
 		region=$(jq -r '.region' <<<$q)
 		status=$(jq -r '.status' <<<$q)
 
-		now=$(date +%s)
-
+		# Because of the large number of entries in
+		# each row we have to split the data to two
+		# SQL commands to avoid an "argument list too
+		# long" error.
 		sqlite3 $db "insert or ignore into hosts ( \
-			businessName, \
-			businessWebsite, \
-			city, \
-			continent, \
-			country, \
-			countryCode, \
+			ipAddr, \
 			ipName, \
 			ipType, \
 			isp, \
-			lat, \
-			lon, \
 			org, \
-			ipAddr, \
-			region, \
 			status, \
-			lookupTime) values ( \
-			\"$businessName\", \
-			\"$businessWebsite\", \
-			\"$city\", \
-			\"$continent\", \
-			\"$country\", \
-			\"$countryCode\", \
+			lookupTime) values (\
+			\"$ipAddr\", \
 			\"$ipName\", \
 			\"$ipType\", \
-			\"$ips\", \
-			$lat, \
-			$lon, \
+			\"$isp\", \
 			\"$org\", \
-			\"$ip\", \
-			\"$region\", \
 			\"$status\", \
 			$now);"
+		sqlite3 $db "update hosts set \
+			businessName=\"$businessName\", \
+			businessWebsite=\"$businessWebsite\", \
+			city=\"$city\", \
+			country=\"$country\", \
+			countryCode=\"countryCode\", \
+			continent=\"$continent\", \
+			region=\"$region\", \
+			lat=$lat, \
+			lon=$lon \
+			where ipAddr=\"$ipAddr\";"
+
+		#sqlite3 $db "insert or ignore into hosts ( \
+		#	businessName, businessWebsite, \
+		#	city, continent, country, \
+		#	countryCode, ipName, ipType, isp, \
+		#	lat, lon, org, ipAddr, region, \
+		#	status, lookupTime) values ( \
+		#	\"$businessName\", \
+		#	\"$businessWebsite\", \
+		#	\"$city\", \"$continent\", \
+		#	\"$country\", \"$countryCode\", \
+		#	\"$ipName\", \"$ipType\", \"$ips\", \
+		#	$lat, $lon, \"$org\", \"$ip\", \
+		#	\"$region\", \"$status\", $now);"
 
 		# Wait 2 seconds, because service 
 		# extreme-ip-lookup.com can be polled
 		# only 50 times a minute without
 		# subscription
-		sleep 2
+		t=$(date +%s)
+		while (( t-now < 2 ))
+	       	do
+			t=$(date +%s)
+		done
 	fi
 done
 
