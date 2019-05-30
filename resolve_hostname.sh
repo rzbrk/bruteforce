@@ -8,25 +8,47 @@
 #db="/root/bad_logs.db"
 db=$1
 
-# select ssh_logs.source_ip from ssh_logs left join hosts on (ssh_logs.source_ip = hosts.ipAddr) where hosts.ipAddr is null union select apache_logs.source_ip from apache_logs left join hosts on (apache_logs.source_ip = hosts.ipAddr) where hosts.ipAddr not null;
+n1=$(sqlite3 $db "select count(ssh_logs.source_ip) \
+	from ssh_logs left join hosts \
+	on (ssh_logs.source_ip = hosts.ipAddr) \
+	where hosts.ipAddr is null;")
+n2=$(sqlite3 $db "select count(apache_logs.source_ip) from \
+	apache_logs left join hosts on \
+	(apache_logs.source_ip = hosts.ipAddr) where \
+	hosts.ipAddr is null;")
+n_ips=$((n1+n2))
 
-ips_ssh=$(sqlite3 $db "select source_ip from ssh_logs;")
-ips_apache=$(sqlite3 $db "select source_ip from apache_logs;")
-ips=("${ips_ssh[@]}" "${ips_apache[@]}")
-
-# Loop over all IPs in the above list, determine if we
-# already looked up the information. If not query
-# extreme-ip-lookup.com and save information to database.
-for ip in $ips
+while (( n_ips > 0  ))
 do
 
-	# Count the rows in table hosts with the given IP
-	# to determine, if we already looked it up (if > 0).
-	lookedup=$(sqlite3 $db "select count(ipAddr) \
-		from hosts where ipAddr=\"$ip\";")
+#echo -n "Search database for IP addresses to process ... "
+#ips_ssh=$(sqlite3 $db "select source_ip from ssh_logs;")
+#ips_apache=$(sqlite3 $db "select source_ip from apache_logs;")
+#ips=("${ips_ssh[@]}" "${ips_apache[@]}")
+#echo "ready!"
 
-	if [ $lookedup -eq 0 ]
-	then
+	# Search database for IP addresses to processes, but
+	# limit the number to 10 for each round in the while 
+	# loop:
+	echo ""
+	echo -n "Search database for IP addresses to process ... "
+	ips=$(sqlite3 $db "select ssh_logs.source_ip from \
+		ssh_logs left join hosts on \
+		(ssh_logs.source_ip = hosts.ipAddr) \
+		where hosts.ipAddr is null union select \
+		apache_logs.source_ip from apache_logs \
+		left join hosts on (apache_logs.source_ip = \
+		hosts.ipAddr) where hosts.ipAddr is null \
+		limit 10;")
+	echo "ready!"
+
+	# Loop over all IPs in the above list, determine if 
+	# we already looked up the information. If not query
+	# extreme-ip-lookup.com and save information to
+	# database.
+	for ip in $ips
+	do
+
 		echo "Look up $ip"
 		q=$(curl -s extreme-ip-lookup.com/json/$ip)
 		now=$(date +%s)
@@ -46,6 +68,8 @@ do
 		ipAddr=$(jq -r '.query' <<<$q)
 		region=$(jq -r '.region' <<<$q)
 		status=$(jq -r '.status' <<<$q)
+
+		echo "  extreme-ip-lookup.com: $status"
 
 		# Because of the large number of entries in
 		# each row we have to split the data to two
@@ -77,31 +101,35 @@ do
 			lat=$lat, \
 			lon=$lon \
 			where ipAddr=\"$ip\";"
-
-		#sqlite3 $db "insert or ignore into hosts ( \
-		#	businessName, businessWebsite, \
-		#	city, continent, country, \
-		#	countryCode, ipName, ipType, isp, \
-		#	lat, lon, org, ipAddr, region, \
-		#	status, lookupTime) values ( \
-		#	\"$businessName\", \
-		#	\"$businessWebsite\", \
-		#	\"$city\", \"$continent\", \
-		#	\"$country\", \"$countryCode\", \
-		#	\"$ipName\", \"$ipType\", \"$ips\", \
-		#	$lat, $lon, \"$org\", \"$ip\", \
-		#	\"$region\", \"$status\", $now);"
+		echo "  Saved results to database"
 
 		# Wait 2 seconds, because service 
 		# extreme-ip-lookup.com can be polled
 		# only 50 times a minute without
 		# subscription
+		echo -n "  wait "
 		t=$(date +%s)
 		while (( t-now < 2 ))
-	       	do
+	    	do
 			t=$(date +%s)
+			echo -n "."
+			sleep 0.1
 		done
-	fi
+		echo ""
+	done
+
+	# Count the number of IP addresse left unprocessed in
+	# the database for the condition of the while loop
+	n1=$(sqlite3 $db "select count(ssh_logs.source_ip) \
+		from ssh_logs left join hosts \
+		on (ssh_logs.source_ip = hosts.ipAddr) \
+		where hosts.ipAddr is null;")
+	n2=$(sqlite3 $db "select count(apache_logs.source_ip) from \
+		apache_logs left join hosts on \
+		(apache_logs.source_ip = hosts.ipAddr) where \
+		hosts.ipAddr is null;")
+	n_ips=$((n1+n2))
+
 done
 
 # SQL to set-up database for this script
