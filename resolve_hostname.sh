@@ -59,7 +59,7 @@ do
 			org, \
 			status, \
 			lookupTime) values (\
-			\"$ipAddr\", \
+			\"$ip\", \
 			\"$ipName\", \
 			\"$ipType\", \
 			\"$isp\", \
@@ -76,7 +76,7 @@ do
 			region=\"$region\", \
 			lat=$lat, \
 			lon=$lon \
-			where ipAddr=\"$ipAddr\";"
+			where ipAddr=\"$ip\";"
 
 		#sqlite3 $db "insert or ignore into hosts ( \
 		#	businessName, businessWebsite, \
