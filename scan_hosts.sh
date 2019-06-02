@@ -7,6 +7,9 @@
 # Database file
 db=$1
 
+# Limit time to scan host (default 10 inutes)
+timeout=${2-10m}
+
 # See if table hosts already has column nmap for nmap output.
 # If not, create column
 hosts_row_nmap=`sqlite3 $db ".schema hosts" | grep "nmap text"`
@@ -25,9 +28,12 @@ do
 	# Perform a fast (-T4) nmap scan for discovery of
 	# operating system and services (-A). Output is
 	# formatted to XML to make it easier to use parse
-	# through the results for a detailed analysis:
+	# through the results for a detailed analysis.
+	# The time spent to scan a host can be limited. If
+	# no value is provided by command line argument a
+	# default value of 10 minutes per host is assumed.
 	echo "Scanning $ip"
-	nmap_out=`nmap -A -T4 $ip -oX -`
+	nmap_out=`nmap --host-timeout $timeout -A -T4 $ip -oX -`
 
 	# Save results to database
 	sqlite3 $db "update hosts \
