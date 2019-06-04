@@ -4,15 +4,33 @@
 #  sqlite3
 #  jq
 
-# Database file
-#db="/root/bad_logs.db"
-db=$1
+# Read config file
+conffile=$1
+if test -r "$conffile" -a -f "$conffile"
+then
+        . $conffile
+else
+        echo "Call: $0 <conffile>"
+        exit
+fi
 
-n1=$(sqlite3 $db "select count(ssh_logs.source_ip) \
+# Check the parameter read from the config file and set
+# default values if necessary
+host=${host:-"rasputin.selfip.net"}
+port=${port:-3306}
+database=${database:-"bruteforce"}
+user=${user:-"bruteforce"}
+password=${password:-""}
+
+# MySQL command string
+mysqlcmd="mysql -h $host -P $port -u $user -p$password \
+        -D $database"
+
+n1=$($mysqlcmd -e "select count(ssh_logs.source_ip) \
 	from ssh_logs left join hosts \
 	on (ssh_logs.source_ip = hosts.ipAddr) \
 	where hosts.ipAddr is null;")
-n2=$(sqlite3 $db "select count(apache_logs.source_ip) from \
+n2=$($mysqlcmd -e "select count(apache_logs.source_ip) from \
 	apache_logs left join hosts on \
 	(apache_logs.source_ip = hosts.ipAddr) where \
 	hosts.ipAddr is null;")
@@ -21,18 +39,12 @@ n_ips=$((n1+n2))
 while (( n_ips > 0  ))
 do
 
-#echo -n "Search database for IP addresses to process ... "
-#ips_ssh=$(sqlite3 $db "select source_ip from ssh_logs;")
-#ips_apache=$(sqlite3 $db "select source_ip from apache_logs;")
-#ips=("${ips_ssh[@]}" "${ips_apache[@]}")
-#echo "ready!"
-
 	# Search database for IP addresses to processes, but
 	# limit the number to 10 for each round in the while 
 	# loop:
 	echo ""
 	echo -n "Search database for IP addresses to process ... "
-	ips=$(sqlite3 $db "select ssh_logs.source_ip from \
+	ips=$($mysqlcmd -e "select ssh_logs.source_ip from \
 		ssh_logs left join hosts on \
 		(ssh_logs.source_ip = hosts.ipAddr) \
 		where hosts.ipAddr is null union select \
@@ -75,7 +87,7 @@ do
 		# each row we have to split the data to two
 		# SQL commands to avoid an "argument list too
 		# long" error.
-		sqlite3 $db "insert or ignore into hosts ( \
+		$mysqlcmd -e "insert ignore into hosts ( \
 			ipAddr, \
 			ipName, \
 			ipType, \
@@ -90,7 +102,7 @@ do
 			\"$org\", \
 			\"$status\", \
 			$now);"
-		sqlite3 $db "update hosts set \
+		$mysqlcmd -e "update hosts set \
 			businessName=\"$businessName\", \
 			businessWebsite=\"$businessWebsite\", \
 			city=\"$city\", \
@@ -120,11 +132,11 @@ do
 
 	# Count the number of IP addresse left unprocessed in
 	# the database for the condition of the while loop
-	n1=$(sqlite3 $db "select count(ssh_logs.source_ip) \
+	n1=$($mysqlcmd -e "select count(ssh_logs.source_ip) \
 		from ssh_logs left join hosts \
 		on (ssh_logs.source_ip = hosts.ipAddr) \
 		where hosts.ipAddr is null;")
-	n2=$(sqlite3 $db "select count(apache_logs.source_ip) from \
+	n2=$($mysqlcmd -e "select count(apache_logs.source_ip) from \
 		apache_logs left join hosts on \
 		(apache_logs.source_ip = hosts.ipAddr) where \
 		hosts.ipAddr is null;")

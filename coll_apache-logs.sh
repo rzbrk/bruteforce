@@ -1,8 +1,26 @@
 #!/bin/bash
 
-# Database file
-#db="/root/bad_logs.db"
-db=$1
+# Read config file
+conffile=$1
+if test -r "$conffile" -a -f "$conffile"
+then
+        . $conffile
+else
+        echo "Call: $0 <conffile>"
+        exit
+fi
+
+# Check the parameter read from the config file and set
+# default values if necessary
+host=${host:-"rasputin.selfip.net"}
+port=${port:-3306}
+database=${database:-"bruteforce"}
+user=${user:-"bruteforce"}
+password=${password:-""}
+
+# MySQL command string
+mysqlcmd="mysql -h $host -P $port -u $user -p$password \
+				        -D $database"
 
 # Create temporary file for the sshd logs
 tempfile="/tmp/$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c 13).txt"
@@ -36,7 +54,7 @@ while read line; do
 	source_port=`echo ${data[9]} | awk -F ":" '{print $2}'`
 	script=${data[11]}
 
-	sqlite3 $db "insert or ignore into apache_logs \
+	$mysqlcmd -e "insert ignore into apache_logs \
 		(time,script,source_ip,source_port) values \
 	       	($time_unix,\"$script\",\"$source_ip\",$source_port);"
 done < $tempfile

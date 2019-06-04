@@ -1,8 +1,30 @@
 #!/bin/bash
 
-# Database file
-#db="/root/bad_logs.db"
-db=$1
+# Requirments:
+#  mysql
+#  gnuplot
+
+# Read config file
+conffile=$1
+if test -r "$conffile" -a -f "$conffile"
+then
+        . $conffile
+else
+        echo "Call: $0 <conffile>"
+        exit
+fi
+
+# Check the parameter read from the config file and set
+# default values if necessary
+host=${host:-"rasputin.selfip.net"}
+port=${port:-3306}
+database=${database:-"bruteforce"}
+user=${user:-"bruteforce"}
+password=${password:-""}
+
+# MySQL command string
+mysqlcmd="mysql -h $host -P $port -u $user -p$password \
+        -D $database"
 
 # World map file
 map=$2
@@ -20,7 +42,7 @@ touch $tempgpl
 
 # Retrieve from database hosts with lat/lon
 echo "# Logitude,Latitude" > $tempfile
-sqlite3 $db "select lon,lat from hosts;" >> $tempfile
+$mysqlcmd -e  "select lon,lat from hosts;" >> $tempfile
 sed -i -e "s/|/ /g" $tempfile
 
 # Prepare Gnuplot file
