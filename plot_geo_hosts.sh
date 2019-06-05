@@ -42,8 +42,8 @@ touch $tempgpl
 
 # Retrieve from database hosts with lat/lon
 echo "# Logitude,Latitude" > $tempfile
-$mysqlcmd -e  "select lon,lat from hosts;" >> $tempfile
-sed -i -e "s/|/ /g" $tempfile
+$mysqlcmd -N -B -e  "select lon,lat from hosts;" >> $tempfile
+#sed -i -e "s/|/ /g" $tempfile
 
 # Prepare Gnuplot file
 echo "set terminal pngcairo  transparent enhanced font \"arial,10\" fontscale 1.0 size 1200, 800" >> $tempgpl
