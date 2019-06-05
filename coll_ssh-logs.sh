@@ -28,10 +28,14 @@ touch $tempfile
 
 # Ask journalctl for all sshd logs with "Invalid user" and
 # pipe them to the temporary file
+echo "Scanning journalctl . . ."
 journalctl -o short-unix -u ssh | grep "Invalid user" > $tempfile
+echo "  Completed."
+echo ""
 
 # Loop through every log message, extract the data and store
 # it into database
+echo -n "Processing "
 while read line; do
 	IFS=' ' read -ra data <<< "$line"
 	#echo ${data[@]}
@@ -46,7 +50,10 @@ while read line; do
 	       	($time_unix,\"$user\",\"$source_ip\" \
 		,$source_port);"
 
+	echo -n "."
+
 done < $tempfile
+echo " finished."
 
 # Delete temporary file
 rm $tempfile
