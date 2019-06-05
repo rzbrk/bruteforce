@@ -38,13 +38,21 @@ timeout=${2-10m}
 #fi
 
 # Select all IP addresses where the nmap field is empty.
-ips=$($mysqlcmd -e  "select ipAddr from hosts where \
+ips=$($mysqlcmd -N -B -e  "select ipAddr from hosts where \
 	nmap is null;")
 
 # For all IP addresses with empty field nmap perform a
 # nmap scan
 for ip in $ips
 do
+	# Create a temporary file to hold the sql statement
+	# to update the database. The reason for this is that
+	# the string returned from nmap can be too long to
+	# be processed in a bash command.
+	tempfile="/tmp/$(head /dev/urandom \
+		| tr -dc A-Za-z0-9 | head -c 13).sql"
+	touch $tempfile
+
 	# Perform a fast (-T4) nmap scan for discovery of
 	# operating system and services (-A). Output is
 	# formatted to XML to make it easier to use parse
@@ -52,12 +60,20 @@ do
 	# The time spent to scan a host can be limited. If
 	# no value is provided by command line argument a
 	# default value of 10 minutes per host is assumed.
-	echo "Scanning $ip"
-	nmap_out=`nmap --host-timeout $timeout -A -T4 $ip -oX -`
-
+	echo "Scanning $ip . . ."
+	
+	echo -n "update hosts set nmap='" >> $tempfile
+	echo -n `nmap --host-timeout $timeout -A -T4 $ip \
+		-oX -` >> $tempfile
+	echo -n "' where ipAddr=\"$ip\";" >> $tempfile
+	
 	# Save results to database
-	$mysqlcmd -e "update hosts \
-		set nmap='${nmap_out}' where \
-		ipAddr = \"$ip\";"
+	$mysqlcmd < $tempfile
+	#$mysqlcmd -e "update hosts \
+	#	set nmap='${nmap_out}' where \
+	#	ipAddr = \"$ip\";"
+
+	# Delete tempfile
+	rm $tempfile
 done
 
