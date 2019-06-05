@@ -29,7 +29,10 @@ touch $tempfile
 # Search for all apache logs with message "script
 # [...] not found or unable to stat" and pipe them to the
 # temporary file
-for logfile in /var/log/apache2/error.log*; do
+logfiles="/var/log/apache2/error.log*"
+echo "Scanning $logfiles . . ."
+for logfile in $logfiles; do
+	echo "  - $logfile"
 	filename=`basename $logfile`
 	extension=${filename##*.}
 	if [ "$extension" == "gz" ]
@@ -41,9 +44,15 @@ for logfile in /var/log/apache2/error.log*; do
 done
 sed -i -e "s/\[//g" $tempfile
 sed -i -e "s/\]//g" $tempfile
+echo "  Completed."
+echo ""
+
+# Count the lines in table apache_logs before inserting the latest log entries
+n_before=$($mysqlcmd -N -e "select count(time) from apache_logs;")
 
 # Loop through every log message, extract the data and store
 # it into database
+echo -n "Processing "
 while read line; do
 	IFS=' ' read -ra data <<< "$line"
 
@@ -57,7 +66,14 @@ while read line; do
 	$mysqlcmd -e "insert ignore into apache_logs \
 		(time,script,source_ip,source_port) values \
 	       	($time_unix,\"$script\",\"$source_ip\",$source_port);"
+	echo -n "."
 done < $tempfile
+echo " finished."
+
+# Count the lines in table apache_logs after inserting the latest log entries
+n_after=$($mysqlcmd -N -e "select count(time) from apache_logs;")
+n_added=$((n_after-n_before))
+echo "Added $n_added entries to database."
 
 # Delete temporary file
 rm $tempfile
