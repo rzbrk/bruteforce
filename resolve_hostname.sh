@@ -26,11 +26,11 @@ password=${password:-""}
 mysqlcmd="mysql -h $host -P $port -u $user -p$password \
         -D $database"
 
-n1=$($mysqlcmd -e "select count(ssh_logs.source_ip) \
+n1=$($mysqlcmd -N -B -e "select count(ssh_logs.source_ip) \
 	from ssh_logs left join hosts \
 	on (ssh_logs.source_ip = hosts.ipAddr) \
 	where hosts.ipAddr is null;")
-n2=$($mysqlcmd -e "select count(apache_logs.source_ip) from \
+n2=$($mysqlcmd -N -B -e "select count(apache_logs.source_ip) from \
 	apache_logs left join hosts on \
 	(apache_logs.source_ip = hosts.ipAddr) where \
 	hosts.ipAddr is null;")
@@ -44,7 +44,7 @@ do
 	# loop:
 	echo ""
 	echo -n "Search database for IP addresses to process ... "
-	ips=$($mysqlcmd -e "select ssh_logs.source_ip from \
+	ips=$($mysqlcmd -N -B -e "select ssh_logs.source_ip from \
 		ssh_logs left join hosts on \
 		(ssh_logs.source_ip = hosts.ipAddr) \
 		where hosts.ipAddr is null union select \
@@ -87,7 +87,7 @@ do
 		# each row we have to split the data to two
 		# SQL commands to avoid an "argument list too
 		# long" error.
-		$mysqlcmd -e "insert ignore into hosts ( \
+		$mysqlcmd -N -B -e "insert ignore into hosts ( \
 			ipAddr, \
 			ipName, \
 			ipType, \
@@ -102,7 +102,7 @@ do
 			\"$org\", \
 			\"$status\", \
 			$now);"
-		$mysqlcmd -e "update hosts set \
+		$mysqlcmd -N -B -e "update hosts set \
 			businessName=\"$businessName\", \
 			businessWebsite=\"$businessWebsite\", \
 			city=\"$city\", \
@@ -132,11 +132,11 @@ do
 
 	# Count the number of IP addresse left unprocessed in
 	# the database for the condition of the while loop
-	n1=$($mysqlcmd -e "select count(ssh_logs.source_ip) \
+	n1=$($mysqlcmd -N -B -e "select count(ssh_logs.source_ip) \
 		from ssh_logs left join hosts \
 		on (ssh_logs.source_ip = hosts.ipAddr) \
 		where hosts.ipAddr is null;")
-	n2=$($mysqlcmd -e "select count(apache_logs.source_ip) from \
+	n2=$($mysqlcmd -N -B -e "select count(apache_logs.source_ip) from \
 		apache_logs left join hosts on \
 		(apache_logs.source_ip = hosts.ipAddr) where \
 		hosts.ipAddr is null;")
