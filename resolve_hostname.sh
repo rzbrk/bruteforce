@@ -16,7 +16,7 @@ fi
 
 # Check the parameter read from the config file and set
 # default values if necessary
-host=${host:-"rasputin.selfip.net"}
+host=${host:-"localhost"}
 port=${port:-3306}
 database=${database:-"bruteforce"}
 user=${user:-"bruteforce"}
