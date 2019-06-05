@@ -107,7 +107,7 @@ do
 			businessWebsite=\"$businessWebsite\", \
 			city=\"$city\", \
 			country=\"$country\", \
-			countryCode=\"countryCode\", \
+			countryCode=\"$countryCode\", \
 			continent=\"$continent\", \
 			region=\"$region\", \
 			lat=$lat, \
