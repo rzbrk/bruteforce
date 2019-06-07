@@ -45,10 +45,10 @@ while read line; do
 	source_ip=${data[7]}
 	source_port=${data[9]}
 
-	$mysqlcmd -e "insert or ignore into ssh_logs \
+	$mysqlcmd -e "insert ignore into ssh_logs \
 		(time,user,source_ip,source_port) values \
-	       	($time_unix,\"$user\",\"$source_ip\" \
-		,$source_port);"
+		($time_unix,\"$user\",\"$source_ip\", \
+		$source_port);"
 
 	echo -n "."
 
