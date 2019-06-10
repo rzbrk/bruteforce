@@ -26,16 +26,19 @@ password=${password:-""}
 mysqlcmd="mysql -h $host -P $port -u $user -p$password \
         -D $database"
 
-# Limit time to scan host (default 10 inutes)
+# Limit time to scan host (default 10 minutes)
 timeout=${2-10m}
 
 # See if table hosts already has column nmap for nmap output.
 # If not, create column
-#hosts_row_nmap=`sqlite3 $db ".schema hosts" | grep "nmap text"`
-#if [ "$hosts_row_nmap" == "" ]
-#then
-#	sqlite3 $db "alter table hosts add nmap text;"
-#fi
+c_nmap_exists=$($mysqlcmd -N -B -e "select count(*) from \
+	information_schema.columns where \
+	table_schema=\"$database\" and table_name=\"hosts\" \
+	and column_name=\"nmap\";")
+if (( $c_nmap_exists != 1 ))
+then
+	$(mysqlcmd -e "alter table \"hosts\" add nmap text;")
+fi
 
 # Select all IP addresses where the nmap field is empty.
 ips=$($mysqlcmd -N -B -e  "select ipAddr from hosts where \
