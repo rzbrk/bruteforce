@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# Requirements
+#  mysql
+
 # Echo script name and time (start)
 echo -n "$0, start at "
 date
