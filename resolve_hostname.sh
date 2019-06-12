@@ -4,6 +4,11 @@
 #  sqlite3
 #  jq
 
+# Echo script name and time (start)
+echo -n "$0, start at "
+date
+echo ""
+
 # Read config file
 conffile=$1
 if test -r "$conffile" -a -f "$conffile"
@@ -143,6 +148,11 @@ do
 	n_ips=$((n1+n2))
 
 done
+
+# Echo script name and time (end)
+echo -n "$0, end at "
+date
+echo ""
 
 # SQL to set-up database for this script
 # CREATE TABLE hosts (businessName text, businessWebsite text, city text, continent text, country test, countryCode text, ipName text, ipType text, isp text, lat real, lon real, org text,ipAddr text, region text, status text, lookupTime real);

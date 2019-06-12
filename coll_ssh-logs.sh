@@ -1,5 +1,10 @@
 #!/bin/bash
 
+# Echo script name and time (start)
+echo -n "$0, start at "
+date
+echo ""
+
 # Read config file
 conffile=$1
 if test -r "$conffile" -a -f "$conffile"
@@ -57,6 +62,11 @@ echo " finished."
 
 # Delete temporary file
 rm $tempfile
+
+# Echo script name and time (end)
+echo -n "$0, end at "
+date
+echo ""
 
 # SQL to set-up database for this script
 # CREATE TABLE ssh_logs (time real, user text, source_ip text, source_port integer);

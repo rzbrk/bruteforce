@@ -4,6 +4,11 @@
 #  mysql
 #  nmap
 
+# Echo script name and time (start)
+echo -n "$0, start at "
+date
+echo ""
+
 # Read config file
 conffile=$1
 if test -r "$conffile" -a -f "$conffile"
@@ -79,4 +84,9 @@ do
 	# Delete tempfile
 	rm $tempfile
 done
+
+# Echo script name and time (end)
+echo -n "$0, end at "
+date
+echo ""
 
