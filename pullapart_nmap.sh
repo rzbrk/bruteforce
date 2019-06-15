@@ -41,19 +41,33 @@ do
 	# Search database for nmap xml to processes, but
 	# limit the number to 10 for each round in the while 
 	# loop:
-	#echo ""
-	#echo -n "Search database for nmap xml output to process ... "
-	nmapxml=$($mysqlcmd -N -B -e "select nmap from hosts where \
-		nmapProcessed=0 limit 1;")
+	sqlret=$($mysqlcmd -N -B -e "select ipAddr,nmap from hosts \
+		where nmapProcessed=0 limit 1;")
 
+	# Separate ip address and nmap xml
+	ip=`echo $sqlret | awk '{print $1}'`
+	nmapxml=`echo $sqlret | awk '{$1=""; print $0}'`
+	# Remove literal occurances of "\n"
 	nmapxml=`echo $nmapxml | sed 's/\\\n//g'`
+	# Remove leading/trailing whitespace
+	#nmapxml=`echo $nmapxml | awk '{$1=$1};1'`
+	
+	echo "Processing nmap scan from $ip . . ."
+	echo $nmapxml | xmllint --valid -
+	echo $?
+	exit
+	# Check validity of XML. If not valid, skip this ip address
+	echo $nmapxml | xmllint --valid - > /dev/null 2>&1
+	if (( $? != 0 ));
+	then
+		$mysqlcmd -e "update hosts set \
+			nmapProcessed=1 \
+			where ipAddr=\"$ip\";"
+		continue
+	fi
 
 	# Extract information vom xml structure
-	#nmapIP=`echo $nmapxml | xmllint --xpath "string(/nmaprun/host/address/@addr)" -`
-	#echo "Processing nmap scan from $nmapIP . . ."
 	nmapCmd=`echo $nmapxml | xmllint --xpath "string(/nmaprun/@args)" -`
-	nmapIP=`echo $nmapCmd | awk '{print $6}'`
-	echo "Processing nmap scan from $nmapIP . . ."
 	nmapVer=`echo $nmapxml | xmllint --xpath "string(/nmaprun/@version)" -`
 	nmapXMLVer=`echo $nmapxml | xmllint --xpath "string(/nmaprun/@xmloutputversion)" -`
 	nmapStart=`echo $nmapxml | xmllint --xpath "string(/nmaprun/@start)" -`
@@ -63,7 +77,7 @@ do
 	nmapHostName=`echo $nmapxml | xmllint --xpath "string(/nmaprun/host/hostnames/hostname/@name)" -`
 	nmapUptime=`echo $nmapxml | xmllint --xpath "string(/nmaprun/host/uptime/@seconds)" -`
 	if [ "$nmapUptime" == "" ]; then nmapUptime="NULL"; fi
-	echo "  $nmapCmd, $nmapVer, $nmapXMLVer, $nmapIP, $nmapStart, $nmapEnd, $nmapHostName, $nmapUptime"
+	
 	# Update host information in database
 	$mysqlcmd -e "update hosts set \
 		nmapCmd=\"$nmapCmd\", \
@@ -113,7 +127,7 @@ do
 			osType, \
 			method, \
 			conf) values ( \
-			\"$nmapIP\", \
+			\"$ip\", \
 			\"$ptype\", \
 			$pnumb, \
 			\"$pstate\", \
@@ -158,7 +172,7 @@ do
 			vendor, \
 			family, \
 			portUsed) values ( \
-			\"$nmapIP\", \
+			\"$ip\", \
 			\"$osname\", \
 			$osaccuracy, \
 			\"$osline\", \
@@ -190,7 +204,7 @@ do
 			type, \
 			sshkey, \
 			bits) values ( \
-			\"$nmapIP\", \
+			\"$ip\", \
 			\"$kfingerpr\", \
 			\"$ktype\", \
 			\"$ksshkey\", \
