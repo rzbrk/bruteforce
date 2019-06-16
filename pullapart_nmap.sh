@@ -53,14 +53,13 @@ do
 	#nmapxml=`echo $nmapxml | awk '{$1=$1};1'`
 	
 	echo "Processing nmap scan from $ip . . ."
-	echo $nmapxml | xmllint --valid -
-	echo $?
-	exit
 	# Check validity of XML. If not valid, skip this ip address
-	echo $nmapxml | xmllint --valid - > /dev/null 2>&1
+	echo $nmapxml | xmllint --noout - > /dev/null 2>&1
 	if (( $? != 0 ));
 	then
+		echo "  Nmap XML not valid --> skip"
 		$mysqlcmd -e "update hosts set \
+			nmapInvalid=1, \
 			nmapProcessed=1 \
 			where ipAddr=\"$ip\";"
 		continue
@@ -88,7 +87,7 @@ do
 		nmapHostName=\"$nmapHostName\", \
 		nmapUptime=$nmapUptime, \
 		nmapProcessed=1 \
-		where ipAddr=\"$nmapIP\";"
+		where ipAddr=\"$ip\";"
 
 	# Number of ports found
 	n_ports=`echo $nmapxml | xmllint --xpath "count(/nmaprun/host/ports/port)" -`
