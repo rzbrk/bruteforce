@@ -31,9 +31,10 @@ password=${password:-""}
 mysqlcmd="mysql -h $host -P $port -u $user -p$password \
         -D $database"
 
-# Count all IP addresses where the field nmapProcessed is false/0.
+# Count all IP addresses with nmap scan output and where the field
+# nmapProcessed is false/0.
 n_ips=$($mysqlcmd -N -B -e  "select count(*) from hosts where \
-	nmapProcessed=0;")
+	nmapProcessed=0 and nmap is not null;")
 
 while (( n_ips > 0  ))
 do
@@ -42,7 +43,7 @@ do
 	# limit the number to 10 for each round in the while 
 	# loop:
 	sqlret=$($mysqlcmd -N -B -e "select ipAddr,nmap from hosts \
-		where nmapProcessed=0 limit 1;")
+		where nmapProcessed=0 and nmap is not null limit 1;")
 
 	# Separate ip address and nmap xml
 	ip=`echo $sqlret | awk '{print $1}'`
