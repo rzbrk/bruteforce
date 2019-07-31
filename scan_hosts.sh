@@ -9,6 +9,17 @@ echo -n "$0, start at "
 date
 echo ""
 
+# Scanning multiple hosts can take a very long time. If this
+# script is scheduled by e.g. cron we should ensure not to
+# run multiple instances of this script in parallel.
+# Therefore, use lock file. The file descriptor 567 is an
+# arbitrary number.
+exec 567>/var/lock/scan_hosts || exit 1
+	flock -n 567 || {
+		echo "$0 already running ... exiting"
+		exit 1
+	}	
+
 # Read config file
 conffile=$1
 if test -r "$conffile" -a -f "$conffile"
