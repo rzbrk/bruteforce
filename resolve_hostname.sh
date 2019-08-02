@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Requirements:
-#  sqlite3
+#  mysql
 #  jq
 
 # Echo script name and time (start)
