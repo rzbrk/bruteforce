@@ -45,9 +45,9 @@ for logfile in $logfiles; do
 	extension=${filename##*.}
 	if [ "$extension" == "gz" ]
 	then
-		zcat $logfile | grep "not found or unable to stat" >> $tempfile
+		zcat $logfile | grep -a "not found or unable to stat" >> $tempfile
 	else
-		cat $logfile | grep "not found or unable to stat" >> $tempfile
+		cat $logfile | grep -a "not found or unable to stat" >> $tempfile
 	fi
 done
 sed -i -e "s/\[//g" $tempfile
@@ -66,14 +66,16 @@ while read line; do
 
 	timestr="${data[0]} ${data[1]} ${data[2]} ${data[3]} ${data[4]}"
 	time_unix=`date --utc --date "$timestr" +%s`
+	lhost=`cat /etc/hostname`
 	process_id=${data[7]}
 	source_ip=`echo ${data[9]} | awk -F ":" '{print $1}'`
 	source_port=`echo ${data[9]} | awk -F ":" '{print $2}'`
 	script=${data[11]}
 
 	$mysqlcmd -e "insert ignore into apache_logs \
-		(time,script,source_ip,source_port) values \
-	       	($time_unix,\"$script\",\"$source_ip\",$source_port);"
+		(time,host,script,source_ip,source_port,log) values \
+	       	($time_unix,\"$lhost\",\"$script\",\"$source_ip\", \
+		$source_port,\"$line\");"
 	echo -n "."
 done < $tempfile
 echo " finished."
@@ -92,5 +94,12 @@ date
 echo ""
 
 # SQL to set-up database for this script
-# CREATE TABLE apache_logs (time real, script text, source_ip text, source_port integer);
-# CREATE UNIQUE INDEX unique_time_stamp2 on apache_logs(time);
+# apache_logs | CREATE TABLE `apache_logs` (
+#  `time` double DEFAULT NULL,
+#  `host` text,
+#  `script` text,
+#  `source_ip` text,
+#  `source_port` int(11) DEFAULT NULL,
+#  `log` text,
+#  UNIQUE KEY `apache_unique_timestamp` (`time`)
+#  ) ENGINE=InnoDB DEFAULT CHARSET=latin1
