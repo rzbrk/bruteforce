@@ -155,6 +155,33 @@ date
 echo ""
 
 # SQL to set-up database for this script
-# CREATE TABLE hosts (businessName text, businessWebsite text, city text, continent text, country test, countryCode text, ipName text, ipType text, isp text, lat real, lon real, org text,ipAddr text, region text, status text, lookupTime real);
-# CREATE UNIQUE INDEX unique_ipAddr on hosts(ipAddr);
+# CREATE TABLE `hosts` (
+#  `businessName` text,
+#  `businessWebsite` text,
+#  `city` text,
+#  `continent` text,
+#  `country` text,
+#  `countryCode` text,
+#  `ipName` text,
+#  `ipType` text,
+#  `isp` text,
+#  `lat` double DEFAULT NULL,
+#  `lon` double DEFAULT NULL,
+#  `org` text,
+#  `ipAddr` varchar(15) DEFAULT NULL,
+#  `region` text,
+#  `status` text,
+#  `lookupTime` double DEFAULT NULL,
+#  `nmap` text,
+#  `nmapCmd` text,
+#  `nmapVer` text,
+#  `nmapXMLVer` text,
+#  `nmapStart` double DEFAULT NULL,
+#  `nmapEnd` double DEFAULT NULL,
+#  `nmapHostName` text,
+#  `nmapUptime` bigint(20) DEFAULT NULL,
+#  `nmapProcessed` tinyint(1) NOT NULL DEFAULT '0',
+#  `nmapInvalid` tinyint(1) DEFAULT '0',
+#  UNIQUE KEY `unique_ipAddr` (`ipAddr`)
+#  ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 
