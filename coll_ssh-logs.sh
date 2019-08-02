@@ -48,15 +48,16 @@ while read line; do
 	IFS=' ' read -ra data <<< "$line"
 	#echo ${data[@]}
 	time_unix=${data[0]}
+	host=${data[1]}
 	proc_id=${data[2]}
 	user=${data[5]}
 	source_ip=${data[7]}
 	source_port=${data[9]}
 
 	$mysqlcmd -e "insert ignore into ssh_logs \
-		(time,user,source_ip,source_port) values \
-		($time_unix,\"$user\",\"$source_ip\", \
-		$source_port);"
+		(time,host,user,source_ip,source_port,log) values \
+		($time_unix,\"$host\",\"$user\",\"$source_ip\", \
+		$source_port,\"$line\");"
 
 	echo -n "."
 
@@ -72,6 +73,13 @@ date
 echo ""
 
 # SQL to set-up database for this script
-# CREATE TABLE ssh_logs (time real, user text, source_ip text, source_port integer);
-# CREATE UNIQUE INDEX unique_time_stamp on ssh_logs(time);
+# ssh_logs | CREATE TABLE `ssh_logs` (
+#  `time` double DEFAULT NULL,
+#  `host` text,
+#  `user` text,
+#  `source_ip` text,
+#  `source_port` int(11) DEFAULT NULL,
+#  `log` text,
+#  UNIQUE KEY `ssh_unique_timestamp` (`time`)
+#  ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 
