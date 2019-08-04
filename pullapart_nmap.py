@@ -109,13 +109,43 @@ class StripDownXML:
             return 'okay'
 
     def process(self):
-        nmapCmd = self.soup.nmaprun.attrs['args']
-        nmapVer = self.soup.nmaprun.attrs['version']
-        nmapXMLVer = self.soup.nmaprun['xmloutputversion']
-        nmapStart = self.soup.nmaprun['start']
+        values_list = ['args', 'version', 'xmloutputversion','start', 'time', 'name', 'uptime', 'seconds']
+        values_dict = dict((el, 'NULL') for el in values_list)
 
-        print(self.soup.nmaprun)
-        return nmapCmd, nmapVer, nmapXMLVer, nmapStart
+
+        tag_nmaprun = self.soup.find('nmaprun')
+        if tag_nmaprun:
+            tag_nmaprun = tag_nmaprun.attrs
+        else:
+            tag_nmaprun = {}
+
+        tag_finished = self.soup.find('finished')
+        if tag_finished:
+            tag_finished = tag_finished.attrs
+        else:
+            tag_finished = {}
+
+        tag_hostname = self.soup.find('hostname')
+        if tag_hostname:
+            tag_hostname = tag_hostname.attrs
+        else:
+            tag_hostname = {}
+
+        tag_uptime = self.soup.find('upstime')
+        if tag_uptime:
+            tag_uptime = tag_uptime.attrs
+        else:
+            tag_uptime = {}
+
+        extracted_data = {**tag_finished, **tag_nmaprun, **tag_hostname, **tag_uptime}
+
+        for value in values_dict:
+            if value in extracted_data.keys():
+                values_dict[value]=extracted_data[value]
+        print(self.soup.prettify())
+
+
+        return values_dict
 
 
 
@@ -146,25 +176,10 @@ if __name__ == '__main__':
     xmldata = StripDownXML(nmap_xml, db, ip)
     validated_xml = xmldata.validate()
     if validated_xml:
-        nmapCmd, nmapVer, nmapXMLVer, nmapStart = xmldata.process()
-
-    print(nmapCmd, nmapVer, nmapXMLVer, nmapStart)
-
+        xmlvalues = xmldata.process()
+        print(xmlvalues)
 
 
-
-
-
-
-    exit()
-
-    nmaprun = soup.nmaprun
-    print(nmaprun.attrs)
-    runstats = soup.runstats
-    print(runstats.contents[0].attrs)
-    print(runstats.contents[1].attrs)
-
-    print(soup.prettify())
 
     # while (( n_ips > 0  ))
     # do
@@ -173,13 +188,7 @@ if __name__ == '__main__':
     # 	# limit the number to 10 for each round in the while
     # 	# loop:
     # 	# Extract information vom xml structure
-    # 	nmapStart=`echo $nmapxml | xmllint --xpath "string(/nmaprun/@start)" -`
-    # 	if [ "$nmapStart" == "" ]; then nmapStart="NULL"; fi
-    # 	nmapEnd=`echo $nmapxml | xmllint --xpath "string(/nmaprun/runstats/finished/@time)" -`
     # 	if [ "$nmapEnd" == "" ]; then nmapEnd="NULL"; fi
-    # 	nmapHostName=`echo $nmapxml | xmllint --xpath "string(/nmaprun/host/hostnames/hostname/@name)" -`
-    # 	nmapUptime=`echo $nmapxml | xmllint --xpath "string(/nmaprun/host/uptime/@seconds)" -`
-    # 	if [ "$nmapUptime" == "" ]; then nmapUptime="NULL"; fi
     #
     # 	# Update host information in database
     # 	$mysqlcmd -e "update hosts set \
