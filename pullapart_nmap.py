@@ -109,10 +109,13 @@ class StripDownXML:
             return 'okay'
 
     def process(self):
-        nmapCmd = self.soup.nmaprun.attrs
-        nmapVer = self.soup.nmaprun.attrs
+        nmapCmd = self.soup.nmaprun.attrs['args']
+        nmapVer = self.soup.nmaprun.attrs['version']
+        nmapXMLVer = self.soup.nmaprun['xmloutputversion']
+        nmapStart = self.soup.nmaprun['start']
 
-        return nmapCmd, nmapVer
+        print(self.soup.nmaprun)
+        return nmapCmd, nmapVer, nmapXMLVer, nmapStart
 
 
 
@@ -143,9 +146,9 @@ if __name__ == '__main__':
     xmldata = StripDownXML(nmap_xml, db, ip)
     validated_xml = xmldata.validate()
     if validated_xml:
-        nmapCmd, nmapVer = xmldata.process()
+        nmapCmd, nmapVer, nmapXMLVer, nmapStart = xmldata.process()
 
-    print(nmapCmd, nmapVer)
+    print(nmapCmd, nmapVer, nmapXMLVer, nmapStart)
 
 
 
@@ -170,9 +173,6 @@ if __name__ == '__main__':
     # 	# limit the number to 10 for each round in the while
     # 	# loop:
     # 	# Extract information vom xml structure
-    # 	nmapCmd=`echo $nmapxml | xmllint --xpath "string(/nmaprun/@args)" -`
-    # 	nmapVer=`echo $nmapxml | xmllint --xpath "string(/nmaprun/@version)" -`
-    # 	nmapXMLVer=`echo $nmapxml | xmllint --xpath "string(/nmaprun/@xmloutputversion)" -`
     # 	nmapStart=`echo $nmapxml | xmllint --xpath "string(/nmaprun/@start)" -`
     # 	if [ "$nmapStart" == "" ]; then nmapStart="NULL"; fi
     # 	nmapEnd=`echo $nmapxml | xmllint --xpath "string(/nmaprun/runstats/finished/@time)" -`
