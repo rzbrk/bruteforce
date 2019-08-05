@@ -177,9 +177,11 @@ if __name__ == '__main__':
     validated_xml = xmldata.validate()
     if validated_xml:
         xmlvalues = xmldata.process()
-        print(xmlvalues)
-
-
+        # Update host information in database
+        db.execute_sql('update hosts set nmapCmd=%s, nmapVer=%s, nmapXMLVer=%s,  nmapStart=%s, nmapEnd=%s, '
+                       'nmapHostName=%s,nmapUptime=%s,  nmapProcessed=%s where ipAddr = %s',
+                        (xmlvalues['args'],xmlvalues['version'],xmlvalues['xmloutputversion'],xmlvalues['start'],
+                        xmlvalues['time'], xmlvalues['name'], xmlvalues['uptime'], 1, ip))
 
     # while (( n_ips > 0  ))
     # do
@@ -188,19 +190,6 @@ if __name__ == '__main__':
     # 	# limit the number to 10 for each round in the while
     # 	# loop:
     # 	# Extract information vom xml structure
-    # 	if [ "$nmapEnd" == "" ]; then nmapEnd="NULL"; fi
-    #
-    # 	# Update host information in database
-    # 	$mysqlcmd -e "update hosts set \
-    # 		nmapCmd=\"$nmapCmd\", \
-    # 		nmapVer=\"$nmapVer\", \
-    # 		nmapXMLVer=\"$nmapXMLVer\", \
-    # 		nmapStart=$nmapStart, \
-    # 		nmapEnd=$nmapEnd, \
-    # 		nmapHostName=\"$nmapHostName\", \
-    # 		nmapUptime=$nmapUptime, \
-    # 		nmapProcessed=1 \
-    # 		where ipAddr=\"$ip\";"
     #
     # 	# Number of ports found
     # 	n_ports=`echo $nmapxml | xmllint --xpath "count(/nmaprun/host/ports/port)" -`
