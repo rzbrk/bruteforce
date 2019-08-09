@@ -9,6 +9,27 @@ echo -n "$0, start at "
 date
 echo ""
 
+# Processing multiple hosts can take a long time. If this
+# script is scheduled by e.g. cron we should ensure not to
+# run multiple instances of this script in parallel.
+# Therefore, use lock file. The file descriptor 678 is an
+# arbitrary number.
+exec 678>/var/lock/resolve_hostname || exit 1
+        flock -n 678 || {
+		echo "$0 already running ... exiting"
+		exit 1
+	}
+
+# Clean string from special characters
+clean_str () {
+	string=$1
+	# Remove any backslashes
+	string=$(sed 's/\\//g' <<< $string)
+	# Remove any "
+	string=$(sed 's/\"//g' <<< $string)
+	echo $string
+}
+
 # Read config file
 conffile=$1
 if test -r "$conffile" -a -f "$conffile"
@@ -71,20 +92,32 @@ do
 		now=$(date +%s)
 
 		businessName=$(jq -r '.businessName' <<<$q)
+		businessName=$(clean_str "$businessName")
 		businessWebsite=$(jq -r '.businessWebsite' <<<$q)
+		businessWebsite=$(clean_str "$businessWebsite")
 		city=$(jq -r '.city' <<<$q)
+		city=$(clean_str "$city")
 		continent=$(jq -r '.continent' <<<$q)
+		continent=$(clean_str "$continent")
 		country=$(jq -r '.country' <<<$q)
+		country=$(clean_str "$country")
 		countryCode=$(jq -r '.countryCode' <<<$q)
+		countryCode=$(clean_str "$countryCode")
 		ipName=$(jq -r '.ipName' <<<$q)
+		ipName=$(clean_str "$ipName")
 		ipType=$(jq -r '.ipType' <<<$q)
+		ipType=$(clean_str "ipType")
 		isp=$(jq -r '.isp' <<<$q)
+		isp=$(clean_str "$isp")
 		lat=$(jq -r '.lat' <<<$q)
 		lon=$(jq -r '.lon' <<<$q)
 		org=$(jq -r '.org' <<<$q)
+		org=$(clean_str "$org")
 		ipAddr=$(jq -r '.query' <<<$q)
 		region=$(jq -r '.region' <<<$q)
+		region=$(clean_str "region")
 		status=$(jq -r '.status' <<<$q)
+		status=$(clean_str "$status")
 
 		echo "  extreme-ip-lookup.com: $status"
 
