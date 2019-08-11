@@ -195,7 +195,7 @@ do
 		ksshkey=`echo $nmapxml | xmllint --xpath "string((//script[@id=\"ssh-hostkey\"]/table/elem[@key=\"key\"])[last()-$n])" -`
 		kbits=`echo $nmapxml | xmllint --xpath "string((//script[@id=\"ssh-hostkey\"]/table/elem[@key=\"bits\"])[last()-$n])" -`
 	
-		echo "  ssh hostkey $n/$n_sshkeys: $ktype ($kbits bits)"
+		echo "  ssh hostkey $((n+1))/$n_sshkeys: $ktype ($kbits bits)"
 		# Create entry for ssh hostkey in database linked to host
 		$mysqlcmd -e "insert ignore into ssh_hostkeys ( \
 			ipAddr, \
