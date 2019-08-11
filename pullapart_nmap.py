@@ -4,7 +4,7 @@
 # Beautifulsoup4
 # lxml
 
-
+import sys
 import os
 
 try:
@@ -24,10 +24,28 @@ except ImportError:
 from time import tzname
 from sys import argv
 
+try:
+    import lxml
+except ImportError:
+    lxml = None
+    print('Please install lxml first')
+    exit()
+
+# check if installed version of python is suitable
+need_pyversion = '3.6'
+pyversion = sys.version_info
+if pyversion.major < int(need_pyversion[0]):
+    print("1 You need at least Python Version {} to run this script".format(need_pyversion))
+    exit()
+elif pyversion.minor < int(need_pyversion[2]):
+    print("You need at least Python Version {} to run this script".format(need_pyversion))
+    exit()
+
 scriptpath = os.path.abspath(__file__)
 os.chdir(scriptpath[:scriptpath.rfind('/')])
 
 
+# custom class definitions
 class Config:
     def __init__(self, configfilename):
         self.configfilename = configfilename
@@ -81,7 +99,7 @@ class Dbase:
 
         self.cursor = self.connection.cursor()
 
-    def execute_sql(self, sql, arguments=''):
+    def execute_sql(self, sql, arguments=None):
         self._connect()
         self.cursor.execute(sql, arguments)
         data = self.cursor.fetchone()
@@ -109,9 +127,8 @@ class StripDownXML:
             return 'okay'
 
     def process(self):
-        values_list = ['args', 'version', 'xmloutputversion','start', 'time', 'name', 'uptime', 'seconds']
+        values_list = ['args', 'version', 'xmloutputversion', 'start', 'time', 'name', 'uptime', 'seconds']
         values_dict = dict((el, 'NULL') for el in values_list)
-
 
         tag_nmaprun = self.soup.find('nmaprun')
         if tag_nmaprun:
@@ -141,18 +158,18 @@ class StripDownXML:
 
         for value in values_dict:
             if value in extracted_data.keys():
-                values_dict[value]=extracted_data[value]
+                values_dict[value] = extracted_data[value]
+        # print out xml for testing purposes.
         print(self.soup.prettify())
 
-
         return values_dict
-
 
 
 if __name__ == '__main__':
 
     # Echo script name and time (start)
-    print("{}, start at {}".format(__file__, datetime.strftime(datetime.now(), "%a %d. %b %H:%M:%S " + tzname[1] + " %Y")))
+    print("{}, start at {}".format(__file__,
+                                   datetime.strftime(datetime.now(), "%a %d. %b %H:%M:%S " + tzname[1] + " %Y")))
 
     # Read config file
     # Check the parameter read from the config file and set
@@ -169,7 +186,7 @@ if __name__ == '__main__':
     # Separate ip address and nmap xml
     # Search database for nmap xml to processes, but
     # limit the number to 1
-    ip, nmap_xml = db.execute_sql('select ipAddr,nmap from hosts where nmapProcessed=0 and nmap is not null limit 1;')
+    ip, nmap_xml = db.execute_sql('select ipAddr, nmap from hosts where nmapProcessed=0 and nmap is not null limit 1;')
     print("Processing nmap scan from {}".format(ip))
     # Extract information from xml structure
 
@@ -180,9 +197,11 @@ if __name__ == '__main__':
         # Update host information in database
         db.execute_sql('update hosts set nmapCmd=%s, nmapVer=%s, nmapXMLVer=%s,  nmapStart=%s, nmapEnd=%s, '
                        'nmapHostName=%s,nmapUptime=%s,  nmapProcessed=%s where ipAddr = %s',
-                        (xmlvalues['args'],xmlvalues['version'],xmlvalues['xmloutputversion'],xmlvalues['start'],
+                       (xmlvalues['args'], xmlvalues['version'], xmlvalues['xmloutputversion'], xmlvalues['start'],
                         xmlvalues['time'], xmlvalues['name'], xmlvalues['uptime'], 1, ip))
 
+    print("Goodbye - Development will continue asap.")
+    exit()
     # while (( n_ips > 0  ))
     # do
     #
