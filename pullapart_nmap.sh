@@ -185,19 +185,18 @@ do
 	done
 	
 	# Number of ssh keys
-	n_sshkeys=`echo $nmapxml | xmllint --xpath "count(/nmaprun/host/ports/port/script[@id=\"ssh-hostkey\"]/table)" -`
+	n_sshkeys=`echo $nmapxml | xmllint --xpath "count(//script[@id=\"ssh-hostkey\"]//table/elem[@key=\"key\"])" -`
 
 	# Loop over all individual ssh keys
-	for ((n=1; n<=$n_sshkeys; n++))
+	for ((n=0; n<$n_sshkeys; n++))
 	do
 		# Retrieve information regarding the ssh key
-
-		kfingerpr=`echo $nmapxml | xmllint --xpath "string(/nmaprun/host/ports/port/script[@id=\"ssh-hostkey\"]/table[$n]/elem[@key=\"fingerprint\"])" -`
-		ktype=`echo $nmapxml | xmllint --xpath "string(/nmaprun/host/ports/port/script[@id=\"ssh-hostkey\"]/table[$n]/elem[@key=\"type\"])" -`
-		ksshkey=`echo $nmapxml | xmllint --xpath "string(/nmaprun/host/ports/port/script[@id=\"ssh-hostkey\"]/table[$n]/elem[@key=\"key\"])" -`
-		kbits=`echo $nmapxml | xmllint --xpath "string(/nmaprun/host/ports/port/script[@id=\"ssh-hostkey\"]/table[$n]/elem[@key=\"bits\"])" -`
+		kfingerpr=`echo $nmapxml | xmllint --xpath "string((//script[@id=\"ssh-hostkey\"]//table/elem[@key=\"fingerprint\"])[last()-$n])" -`
+		ktype=`echo $nmapxml | xmllint --xpath "string((//script[@id=\"ssh-hostkey\"]//table/elem[@key=\"type\"])[last()-$n])" -`
+		ksshkey=`echo $nmapxml | xmllint --xpath "string((//script[@id=\"ssh-hostkey\"]//table/elem[@key=\"key\"])[last()-$n])" -`
+		kbits=`echo $nmapxml | xmllint --xpath "string((//script[@id=\"ssh-hostkey\"]//table/elem[@key=\"bits\"])[last()-$n])" -`
 	
-		echo "  ssh hostkey $n/$n_sshkeys: $ktype ($kbits bits)"
+		echo "  ssh hostkey $((n+1))/$n_sshkeys: $ktype ($kbits bits)"
 		# Create entry for ssh hostkey in database linked to host
 		$mysqlcmd -e "insert ignore into ssh_hostkeys ( \
 			ipAddr, \
