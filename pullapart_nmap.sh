@@ -1,5 +1,6 @@
 #!/bin/bash
 
+# test
 # Requirements:
 #  mysql
 #  xmllint, xpath
