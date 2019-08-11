@@ -192,8 +192,8 @@ do
 		# Retrieve information regarding the ssh key
 		kfingerpr=`echo $nmapxml | xmllint --xpath "string((//script[@id=\"ssh-hostkey\"]//table/elem[@key=\"fingerprint\"])[last()-$n])" -`
 		ktype=`echo $nmapxml | xmllint --xpath "string((//script[@id=\"ssh-hostkey\"]//table/elem[@key=\"type\"])[last()-$n])" -`
-		ksshkey=`echo $nmapxml | xmllint --xpath "string((//script[@id=\"ssh-hostkey\"]/table/elem[@key=\"key\"])[last()-$n])" -`
-		kbits=`echo $nmapxml | xmllint --xpath "string((//script[@id=\"ssh-hostkey\"]/table/elem[@key=\"bits\"])[last()-$n])" -`
+		ksshkey=`echo $nmapxml | xmllint --xpath "string((//script[@id=\"ssh-hostkey\"]//table/elem[@key=\"key\"])[last()-$n])" -`
+		kbits=`echo $nmapxml | xmllint --xpath "string((//script[@id=\"ssh-hostkey\"]//table/elem[@key=\"bits\"])[last()-$n])" -`
 	
 		echo "  ssh hostkey $((n+1))/$n_sshkeys: $ktype ($kbits bits)"
 		# Create entry for ssh hostkey in database linked to host
