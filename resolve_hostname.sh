@@ -52,32 +52,49 @@ password=${password:-""}
 mysqlcmd="mysql -h $host -P $port -u $user -p$password \
         -D $database"
 
-n1=$($mysqlcmd -N -B -e "select count(ssh_logs.source_ip) \
-	from ssh_logs left join hosts \
-	on (ssh_logs.source_ip = hosts.ipAddr) \
-	where hosts.ipAddr is null;")
-n2=$($mysqlcmd -N -B -e "select count(apache_logs.source_ip) from \
-	apache_logs left join hosts on \
-	(apache_logs.source_ip = hosts.ipAddr) where \
-	hosts.ipAddr is null;")
-n_ips=$((n1+n2))
+# This script basically collects ip address from tables
+# in the database and creates entry in tables hosts if
+# this ip address is unknown so far (has no entry in
+# table hosts). Any "source" table is good as long as
+# contains a column "source_ip". Therefore, retrieve a
+# list of tables in the database with such a column:
+source_tables=$($mysqlcmd -N -B -e \
+	"select distinct table_name \
+	from information_schema.columns \
+	where column_name=\"source_ip\" \
+	and table_schema=\"bruteforce2\";")
+
+# The variable n_ips is the number of unknown ips.
+# Initialize this variable and loop over all tables
+# found above to obtain n.
+n_ips=0
+for tbl in $source_tables
+do
+	n=$($mysqlcmd -N -B -e "select count($tbl.source_ip) \
+	         from $tbl left join hosts \
+	         on ($tbl.source_ip = hosts.ipAddr) \
+	         where hosts.ipAddr is null;")
+	n_ips=$((n_ips+n))
+done
 
 while (( n_ips > 0  ))
 do
 
-	# Search database for IP addresses to processes, but
-	# limit the number to 10 for each round in the while 
-	# loop:
+	# Search in all tables for unknown ip addresses to
+	# process. Limit the number of ips to 1 per table for
+	# each round of the while loop not to run in trouble
+	# with long ip lists.
 	echo ""
 	echo -n "Search database for IP addresses to process ... "
-	ips=$($mysqlcmd -N -B -e "select ssh_logs.source_ip from \
-		ssh_logs left join hosts on \
-		(ssh_logs.source_ip = hosts.ipAddr) \
-		where hosts.ipAddr is null union select \
-		apache_logs.source_ip from apache_logs \
-		left join hosts on (apache_logs.source_ip = \
-		hosts.ipAddr) where hosts.ipAddr is null \
-		limit 10;")
+	ips=""
+	for tbl in $source_tables
+	do
+		ip=$($mysqlcmd -N -B -e "select $tbl.source_ip \
+			from $tbl left join hosts on \
+			($tbl.source_ip = hosts.ipAddr) \
+			where hosts.ipAddr is null limit 1;")
+		ips="$ips $ip"
+	done
 	echo "ready!"
 
 	# Loop over all IPs in the above list, determine if 
@@ -168,18 +185,17 @@ do
 		echo ""
 	done
 
-	# Count the number of IP addresse left unprocessed in
+	# Count the number of IP addresses left unprocessed in
 	# the database for the condition of the while loop
-	n1=$($mysqlcmd -N -B -e "select count(ssh_logs.source_ip) \
-		from ssh_logs left join hosts \
-		on (ssh_logs.source_ip = hosts.ipAddr) \
-		where hosts.ipAddr is null;")
-	n2=$($mysqlcmd -N -B -e "select count(apache_logs.source_ip) from \
-		apache_logs left join hosts on \
-		(apache_logs.source_ip = hosts.ipAddr) where \
-		hosts.ipAddr is null;")
-	n_ips=$((n1+n2))
-
+	n_ips=0
+	for tbl in $source_tables
+	do
+		n=$($mysqlcmd -N -B -e "select count($tbl.source_ip) \
+	        	 from $tbl left join hosts \
+		         on ($tbl.source_ip = hosts.ipAddr) \
+		         where hosts.ipAddr is null;")
+		n_ips=$((n_ips+n))
+	done
 done
 
 # Echo script name and time (end)
