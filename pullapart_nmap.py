@@ -127,7 +127,7 @@ class StripDownXML:
             return 'okay'
 
     def process(self):
-        values_list = ['args', 'version', 'xmloutputversion', 'start', 'time', 'name', 'uptime', 'seconds']
+        values_list = ['args', 'version', 'xmloutputversion', 'start', 'time', 'name', 'uptime', 'seconds', 'ports']
         values_dict = dict((el, 'NULL') for el in values_list)
 
         tag_nmaprun = self.soup.find('nmaprun')
@@ -148,13 +148,31 @@ class StripDownXML:
         else:
             tag_hostname = {}
 
+        tag_ports = self.soup.find('ports')
+        if tag_ports:
+            for child in tag_ports.children:
+                if child.name == 'port':
+                    print(child.attrs)
+                    for port_children in child:
+                        print(port_children.attrs)
+                    child.next
+
+#           for port in self.soup.find_all('port'):
+#               print(port.attrs)
+#               print(port.contents)
+            exit()
+        else:
+            tag_ports = {}
+
         tag_uptime = self.soup.find('upstime')
         if tag_uptime:
             tag_uptime = tag_uptime.attrs
         else:
             tag_uptime = {}
 
-        extracted_data = {**tag_finished, **tag_nmaprun, **tag_hostname, **tag_uptime}
+
+
+        extracted_data = {**tag_finished, **tag_nmaprun, **tag_hostname, **tag_uptime, **tag_ports}
 
         for value in values_dict:
             if value in extracted_data.keys():
@@ -194,22 +212,14 @@ if __name__ == '__main__':
     validated_xml = xmldata.validate()
     if validated_xml:
         xmlvalues = xmldata.process()
+        print(xmlvalues)
         # Update host information in database
+        exit()
         db.execute_sql('update hosts set nmapCmd=%s, nmapVer=%s, nmapXMLVer=%s,  nmapStart=%s, nmapEnd=%s, '
                        'nmapHostName=%s,nmapUptime=%s,  nmapProcessed=%s where ipAddr = %s',
                        (xmlvalues['args'], xmlvalues['version'], xmlvalues['xmloutputversion'], xmlvalues['start'],
                         xmlvalues['time'], xmlvalues['name'], xmlvalues['uptime'], 1, ip))
 
-    print("Goodbye - Development will continue asap.")
-    exit()
-    # while (( n_ips > 0  ))
-    # do
-    #
-    # 	# Search database for nmap xml to processes, but
-    # 	# limit the number to 10 for each round in the while
-    # 	# loop:
-    # 	# Extract information vom xml structure
-    #
     # 	# Number of ports found
     # 	n_ports=`echo $nmapxml | xmllint --xpath "count(/nmaprun/host/ports/port)" -`
     #
