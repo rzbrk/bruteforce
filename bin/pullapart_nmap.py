@@ -93,9 +93,13 @@ class Dbase:
         self.config = configdata
 
     def _connect(self):
-        self.connection = mysql.connector.connect(host=config.host, port=config.port, user=config.user,
-                                                  password=config.password,
-                                                  database=config.database)
+        try:
+            self.connection = mysql.connector.connect(host=config.host, port=config.port, user=config.user,
+                                                      password=config.password,
+                                                      database=config.database)
+        except:
+            print('connection error. Please check config (username, password etc.)')
+            exit()
 
         self.cursor = self.connection.cursor()
 
@@ -128,7 +132,9 @@ class StripDownXML:
 
     def process(self):
         values_list = ['args', 'version', 'xmloutputversion', 'start', 'time', 'name', 'uptime', 'seconds', 'ports']
-        values_dict = dict((el, 'NULL') for el in values_list)
+
+        # create a dictionary out of the list and set all values to None. This will be convertet to NULL by the driver
+        values_dict = dict((el, None) for el in values_list)
 
         tag_nmaprun = self.soup.find('nmaprun')
         if tag_nmaprun:
@@ -150,17 +156,22 @@ class StripDownXML:
 
         tag_ports = self.soup.find('ports')
         if tag_ports:
+            portlist = []
             for child in tag_ports.children:
+                ports_list = ['ipAddr', 'protocol', 'portid', 'state', 'reason', 'reason_ttl', 'name', 'product', 'version',
+                              'extrainfo', 'ostype', 'method', 'conf']
+                ports_dict = dict((el, None) for el in ports_list)
+                ports_dict["ipAddr"] = self.attacker_ip
                 if child.name == 'port':
-                    print(child.attrs)
+                    for key in ports_dict.keys():
+                        if key in child.attrs:
+                            ports_dict[key] = child[key]
                     for port_children in child:
-                        print(port_children.attrs)
+                        for key in ports_dict.keys():
+                            if key in port_children.attrs:
+                                ports_dict[key] = port_children.attrs[key]
+                    portlist.append(ports_dict)
                     child.next
-
-#           for port in self.soup.find_all('port'):
-#               print(port.attrs)
-#               print(port.contents)
-            exit()
         else:
             tag_ports = {}
 
@@ -170,15 +181,13 @@ class StripDownXML:
         else:
             tag_uptime = {}
 
-
-
-        extracted_data = {**tag_finished, **tag_nmaprun, **tag_hostname, **tag_uptime, **tag_ports}
+        extracted_data = {**tag_finished, **tag_nmaprun, **tag_hostname, **tag_uptime}
 
         for value in values_dict:
             if value in extracted_data.keys():
                 values_dict[value] = extracted_data[value]
-        # print out xml for testing purposes.
-        print(self.soup.prettify())
+
+        values_dict["ports"] = portlist
 
         return values_dict
 
@@ -212,65 +221,21 @@ if __name__ == '__main__':
     validated_xml = xmldata.validate()
     if validated_xml:
         xmlvalues = xmldata.process()
-        print(xmlvalues)
         # Update host information in database
-        exit()
         db.execute_sql('update hosts set nmapCmd=%s, nmapVer=%s, nmapXMLVer=%s,  nmapStart=%s, nmapEnd=%s, '
                        'nmapHostName=%s,nmapUptime=%s,  nmapProcessed=%s where ipAddr = %s',
                        (xmlvalues['args'], xmlvalues['version'], xmlvalues['xmloutputversion'], xmlvalues['start'],
                         xmlvalues['time'], xmlvalues['name'], xmlvalues['uptime'], 1, ip))
+       # Loop over all individual ports and insert them into database
+        for portvalues in xmlvalues["ports"]:
+            db.execute_sql('insert ignore into ports values(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)',
+                           (portvalues["ipAddr"], portvalues["protocol"], portvalues["portid"],
+                  portvalues["state"],portvalues["reason"], portvalues["reason_ttl"], portvalues["name"],
+                  portvalues["product"], portvalues["version"], portvalues["extrainfo"],portvalues["ostype"],
+                  portvalues["method"],portvalues["conf"]))
 
-    # 	# Number of ports found
-    # 	n_ports=`echo $nmapxml | xmllint --xpath "count(/nmaprun/host/ports/port)" -`
-    #
-    # 	# Loop over all individual ports
-    # 	for ((n=1; n<=$n_ports; n++))
-    # 	do
-    # 		# Retrieve information regarding the port
-    # 		ptype=`echo $nmapxml | xmllint --xpath "string(/nmaprun/host/ports/port[$n]/@protocol)" -`
-    # 		pnumb=`echo $nmapxml | xmllint --xpath "string(/nmaprun/host/ports/port[$n]/@portid)" -`
-    # 		pstate=`echo $nmapxml | xmllint --xpath "string(/nmaprun/host/ports/port[$n]/state/@state)" -`
-    # 		preason=`echo $nmapxml | xmllint --xpath "string(/nmaprun/host/ports/port[$n]/state/@reason)" -`
-    # 		preasonttl=`echo $nmapxml | xmllint --xpath "string(/nmaprun/host/ports/port[$n]/state/@reason_ttl)" -`
-    # 		if [ "$preasonttl" == "" ]; then preasonttl="NULL"; fi
-    # 		pservname=`echo $nmapxml | xmllint --xpath "string(/nmaprun/host/ports/port[$n]/service/@name)" -`
-    # 		pprod=`echo $nmapxml | xmllint --xpath "string(/nmaprun/host/ports/port[$n]/service/@product)" -`
-    # 		pprodver=`echo $nmapxml | xmllint --xpath "string(/nmaprun/host/ports/port[$n]/service/@version)" -`
-    # 		pextrinf=`echo $nmapxml | xmllint --xpath "string(/nmaprun/host/ports/port[$n]/service/@extrainfo)" -`
-    # 		postype=`echo $nmapxml | xmllint --xpath "string(/nmaprun/host/ports/port[$n]/service/@ostype)" -`
-    # 		pmethod=`echo $nmapxml | xmllint --xpath "string(/nmaprun/host/ports/port[$n]/service/@method)" -`
-    # 		pconf=`echo $nmapxml | xmllint --xpath "string(/nmaprun/host/ports/port[$n]/service/@conf)" -`
-    #
-    # 		echo "  port $n/$n_ports: $ptype/$pnumb ($pservname)"
-    # 		# Create entry for port in database linked to host
-    # 		$mysqlcmd -e "insert ignore into ports ( \
-    # 			ipAddr, \
-    # 			type, \
-    # 			portID, \
-    # 			state, \
-    # 			reason, \
-    # 			reasonTTL, \
-    # 			serviceName, \
-    # 			product, \
-    # 			version, \
-    # 			extrainfo, \
-    # 			osType, \
-    # 			method, \
-    # 			conf) values ( \
-    # 			\"$ip\", \
-    # 			\"$ptype\", \
-    # 			$pnumb, \
-    # 			\"$pstate\", \
-    # 			\"$preason\", \
-    # 			\"$preasonttl\", \
-    # 			\"$pservname\", \
-    # 			\"$pprod\", \
-    # 			\"$pprodver\", \
-    # 			\"$pextrinf\", \
-    # 			\"$postype\", \
-    # 			\"$pmethod\", \
-    # 			\"$pconf\");"
-    # 	done
+
+
     #
     # 	# Number of osmatches
     # 	n_osmatches=`echo $nmapxml | xmllint --xpath "count(/nmaprun/host/os/osmatch)" -`
