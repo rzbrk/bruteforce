@@ -107,6 +107,7 @@ class Dbase:
         self._connect()
         self.cursor.execute(sql, arguments)
         data = self.cursor.fetchone()
+        self.connection.commit()
         self._disconnect()
         return data
 
@@ -131,7 +132,7 @@ class StripDownXML:
             return 'okay'
 
     def process(self):
-        values_list = ['args', 'version', 'xmloutputversion', 'start', 'time', 'name', 'uptime', 'seconds', 'ports']
+        values_list = ['args', 'version', 'xmloutputversion', 'start', 'time', 'name', 'uptime', 'seconds', 'ports', 'osses']
 
         # create a dictionary out of the list and set all values to None. This will be convertet to NULL by the driver
         values_dict = dict((el, None) for el in values_list)
@@ -173,7 +174,37 @@ class StripDownXML:
                     portlist.append(ports_dict)
                     child.next
         else:
-            tag_ports = {}
+            portlist = []
+
+        tag_os = self.soup.find('os')
+        if tag_os:
+            oslist = []
+            portcount = 0
+            for child in tag_os.children:
+                osmatch_list = ['ipAddr', 'name', 'accuracy', 'line',  "type", "vendor", "osfamily", "portUsed"]
+                osmatch_dict = dict((el, None) for el in osmatch_list)
+                osmatch_dict["ipAddr"] = self.attacker_ip
+
+
+                if child.name == 'portused':
+                    portcount += 1
+
+                if child.name =='osmatch':
+                    for key in osmatch_dict.keys():
+                        if key in child.attrs.keys():
+                            osmatch_dict[key] = child.attrs[key]
+
+                    for childchild in child:
+                        if childchild.name == 'osclass':
+                            for key in osmatch_dict.keys():
+                                if key in childchild.attrs.keys():
+                                    osmatch_dict[key] = childchild.attrs[key]
+                    osmatch_dict["portUsed"] = portcount
+                    oslist.append((osmatch_dict))
+            values_dict["osses"] = oslist
+        else:
+            oslist=[]
+
 
         tag_uptime = self.soup.find('upstime')
         if tag_uptime:
@@ -188,6 +219,7 @@ class StripDownXML:
                 values_dict[value] = extracted_data[value]
 
         values_dict["ports"] = portlist
+
 
         return values_dict
 
@@ -213,7 +245,12 @@ if __name__ == '__main__':
     # Separate ip address and nmap xml
     # Search database for nmap xml to processes, but
     # limit the number to 1
-    ip, nmap_xml = db.execute_sql('select ipAddr, nmap from hosts where nmapProcessed=0 and nmap is not null limit 1;')
+    try:
+        ip, nmap_xml = db.execute_sql('select ipAddr, nmap from hosts where nmapProcessed=0 and nmap is not null limit 1;')
+    except TypeError:
+        print('Error: No XML-Data')
+        exit()
+
     print("Processing nmap scan from {}".format(ip))
     # Extract information from xml structure
 
@@ -222,61 +259,29 @@ if __name__ == '__main__':
     if validated_xml:
         xmlvalues = xmldata.process()
         # Update host information in database
+        print("updating hosts data")
         db.execute_sql('update hosts set nmapCmd=%s, nmapVer=%s, nmapXMLVer=%s,  nmapStart=%s, nmapEnd=%s, '
                        'nmapHostName=%s,nmapUptime=%s,  nmapProcessed=%s where ipAddr = %s',
                        (xmlvalues['args'], xmlvalues['version'], xmlvalues['xmloutputversion'], xmlvalues['start'],
                         xmlvalues['time'], xmlvalues['name'], xmlvalues['uptime'], 1, ip))
        # Loop over all individual ports and insert them into database
+        print("updating port values")
         for portvalues in xmlvalues["ports"]:
             db.execute_sql('insert ignore into ports values(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)',
                            (portvalues["ipAddr"], portvalues["protocol"], portvalues["portid"],
                   portvalues["state"],portvalues["reason"], portvalues["reason_ttl"], portvalues["name"],
                   portvalues["product"], portvalues["version"], portvalues["extrainfo"],portvalues["ostype"],
                   portvalues["method"],portvalues["conf"]))
+        if xmlvalues["osses"]:
+            print("updating os values")
+            for osvalues in xmlvalues["osses"]:
+                db.execute_sql('insert ignore into os_matches values(%s, %s, %s, %s, %s, %s, %s, %s )',
+                                (osvalues["ipAddr"], osvalues["name"], osvalues["accuracy"], osvalues["line"],
+                               osvalues["type"], osvalues["vendor"], osvalues["osfamily"], osvalues["portUsed"]))
 
 
 
-    #
-    # 	# Number of osmatches
-    # 	n_osmatches=`echo $nmapxml | xmllint --xpath "count(/nmaprun/host/os/osmatch)" -`
-    #
-    # 	# Loop over all individual os matches
-    # 	for ((n=1; n<=$n_osmatches; n++))
-    # 	do
-    # 		# Retrieve information regarding the os match
-    # 		osname=`echo $nmapxml | xmllint --xpath "string(/nmaprun/host/os/osmatch[$n]/@name)" -`
-    # 		osaccuracy=`echo $nmapxml | xmllint --xpath "string(/nmaprun/host/os/osmatch[$n]/@accuracy)" -`
-    # 		if [ "$osaccuracy" == "" ]; then osaccuracy="NULL"; fi
-    # 		osline=`echo $nmapxml | xmllint --xpath "string(/nmaprun/host/os/osmatch[$n]/@line)" -`
-    # 		if [ "$osline" == "" ]; then osline="NULL"; fi
-    # 		# For type, vendor, family use ../osmatch[*]/osclass[1]
-    # 		# although there may be multiple osclass
-    # 		ostype=`echo $nmapxml | xmllint --xpath "string(/nmaprun/host/os/osmatch[$n]/osclass[1]/@type)" -`
-    # 		osvendor=`echo $nmapxml | xmllint --xpath "string(/nmaprun/host/os/osmatch[$n]/osclass[1]/@vendor)" -`
-    # 		osfamily=`echo $nmapxml | xmllint --xpath "string(/nmaprun/host/os/osmatch[$n]/osclass[1]/@osfamily)" -`
-    # 		osportused=`echo $nmapxml | xmllint --xpath "count(/nmaprun/host/os/portused)" -`
-    #
-    # 		echo "  os $n/$n_osmatches: $osname ($osfamily)"
-    # 		# Create entry for os match in database linked to host
-    # 		$mysqlcmd -e "insert ignore into os_matches ( \
-    # 			ipAddr, \
-    # 			name, \
-    # 			accuracy, \
-    # 			line, \
-    # 			type, \
-    # 			vendor, \
-    # 			family, \
-    # 			portUsed) values ( \
-    # 			\"$ip\", \
-    # 			\"$osname\", \
-    # 			$osaccuracy, \
-    # 			\"$osline\", \
-    # 			\"$ostype\", \
-    # 			\"$osvendor\", \
-    # 			\"$osfamily\", \
-    # 			$osportused);"
-    #
-    # 	done
+
     #
     # 	# Number of ssh keys
     # 	n_sshkeys=`echo $nmapxml | xmllint --xpath "count(/nmaprun/host/ports/port/script[@id=\"ssh-hostkey\"]/table)" -`
