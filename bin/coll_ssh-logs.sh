@@ -37,7 +37,7 @@ touch $tempfile
 # Ask journalctl for all sshd logs with "Invalid user" and
 # pipe them to the temporary file
 echo "Scanning journalctl . . ."
-journalctl -o short-unix -u ssh | grep "Invalid user" > $tempfile
+journalctl -o short-unix -u ssh --since="-24h" | grep "Invalid user" > $tempfile
 echo "  Completed."
 echo ""
 
