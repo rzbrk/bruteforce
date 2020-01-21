@@ -227,7 +227,7 @@ do
 
 	# Update number of xml data to process
 	n_ips=$($mysqlcmd -N -B -e  "select count(*) from hosts where \
-		nmapProcessed=0;")
+		nmapProcessed=0 and nmap is not null;")
 
 done
 
