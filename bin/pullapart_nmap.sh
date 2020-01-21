@@ -29,7 +29,7 @@ user=${user:-"bruteforce"}
 password=${password:-""}
 
 # MySQL command string
-mysqlcmd="mysql -h $host -P $port -u $user -p$password \
+mysqlcmd="mysql -h $host -P $port -u $user --password=$password \
         -D $database"
 
 # Count all IP addresses with nmap scan output and where the field

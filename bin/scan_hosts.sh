@@ -39,7 +39,7 @@ user=${user:-"bruteforce"}
 password=${password:-""}
 
 # MySQL command string
-mysqlcmd="mysql -h $host -P $port -u $user -p$password \
+mysqlcmd="mysql -h $host -P $port -u $user --password=$password \
         -D $database"
 
 # Limit time to scan host (default 10 minutes)
