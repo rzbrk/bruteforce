@@ -10,6 +10,19 @@ echo -n "$0, start at "
 date
 echo ""
 
+# Exit if command not found
+exit_ifnot_cmd () {
+	local cmd_name=$1
+	if ! command -v $cmd_name 2>&1 > /dev/null;
+	then
+		echo "Command \"$cmd_name\" not found. Exit."
+		exit 1
+	fi
+}
+exit_ifnot_cmd "mysql"
+exit_ifnot_cmd "xmllint"
+exit_ifnot_cmd "xpath"
+
 # Read config file
 conffile=$1
 if test -r "$conffile" -a -f "$conffile"
